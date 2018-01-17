@@ -95,6 +95,8 @@ Function Deploy-LeSslCertToAzure() {
     $appGatewayFrontEndHttpsPortName = 'myFrontendHttpsPort'
     $appGatewayHttpsPort = 443
     $appGatewayHttpsRuleName = 'httpsRule'
+    $scriptRoot = (Split-Path -parent $PSScriptRoot)
+    $moduleRoot = "$scriptRoot\Modules"
     ###############################################################
     ###############################################################
     ###############################################################
