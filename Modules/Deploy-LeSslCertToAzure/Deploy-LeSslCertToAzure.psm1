@@ -263,6 +263,7 @@ Function Deploy-LeSslCertToAzure() {
          
         # Create a new Listener using the new https port
         Write-Verbose "Creating new HTTPS Listener..."
+        Remove-AzureRmApplicationGatewayHttpListener -ApplicationGateway $appGateway -Name "appGatewayHttpListener" -ErrorAction SilentlyContinue
         Add-AzureRmApplicationGatewayHttpListener -ApplicationGateway $appGateway -Name $appGwHttpsListenerName -Protocol Https -FrontendIPConfiguration $fipconfig -FrontendPort $fpHttpsPort -SslCertificate $cert
         $listener = Get-AzureRmApplicationGatewayHttpListener -ApplicationGateway $appGateway -Name $appGwHttpsListenerName
   
