@@ -249,6 +249,7 @@ Function Deploy-LeSslCertToAzure() {
   
         # Create a new SSL port and add it to the front ends ports
         Write-Verbose "Creating SSL FrontEnd Port for SSL/TLS on TCP 443."
+        Remove-AzureRmApplicationGatewayFrontendPort -ApplicationGateway $appGateway -Name "appGatewayFrontendPort" -ErrorAction SilentlyContinue
         Add-AzureRmApplicationGatewayFrontendPort -ApplicationGateway $appGateway -Name $appGatewayFrontEndHttpsPortName -Port $appGatewayHttpsPort
   
         $fpHttpsPort = Get-AzureRmApplicationGatewayFrontendPort -name $appGatewayFrontEndHttpsPortName -ApplicationGateway $appGateway
