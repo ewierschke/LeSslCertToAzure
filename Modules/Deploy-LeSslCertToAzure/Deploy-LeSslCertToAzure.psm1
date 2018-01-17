@@ -95,13 +95,12 @@ Function Deploy-LeSslCertToAzure() {
     $appGatewayFrontEndHttpsPortName = 'myFrontendHttpsPort'
     $appGatewayHttpsPort = 443
     $appGatewayHttpsRuleName = 'httpsRule'
-    $scriptRoot = (Split-Path -parent $PSScriptRoot)
-    $moduleRoot = "$scriptRoot\Modules"
+    $scriptRoot = "$env:Temp"
     ###############################################################
     ###############################################################
     ###############################################################
     # location to write PFX certificate to deploy to Gateway
-    $signedSslCertificate = "$scriptRoot\Certs\$dnsAlias.pfx"
+    $signedSslCertificate = "$scriptRoot\$dnsAlias.pfx"
  
     ###
     # STAGE ONE - Setup ACME Vault, Validation Domain OwnerShip, and submit, sign and save SSL/TLS Certificate.
@@ -256,7 +255,8 @@ Function Deploy-LeSslCertToAzure() {
   
         # Load cert
         Write-Verbose "Adding SSL/TLS Certificate: $signedSslCertificate."
-        Add-AzureRmApplicationGatewaySslCertificate -ApplicationGateway $appGateway -Name $dnsCertAlias -CertificateFile $signedSslCertificate -Password $certPassword
+        $securecertPassword = ConvertTo-SecureString -String "$certPassword" -AsPlaintText -Force
+        Add-AzureRmApplicationGatewaySslCertificate -ApplicationGateway $appGateway -Name $dnsCertAlias -CertificateFile $signedSslCertificate -Password $securecertPassword
         $cert = Get-AzureRmApplicationGatewaySslCertificate -ApplicationGateway $appGateway -Name $dnsCertAlias
         # Get frontEndIP
         $fipconfig = Get-AzureRmApplicationGatewayFrontendIPConfig -ApplicationGateway $appGateway
