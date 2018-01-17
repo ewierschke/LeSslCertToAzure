@@ -22,6 +22,9 @@
 #.PARAMETER domainToCert
 # The Common Name of the SSL/TLS Certificate (e.g. www.mydomain.com).
 # 
+#.PARAMETER multisiteListener
+# True/true to create a Multi-site Listener using the domainToCert as hostname.
+# 
 #.PARAMETER certPassword
 # The password used to encrypt the PKCS#12 PFX Certificate file.
 #
@@ -48,6 +51,7 @@
 #                -appGatewayName 'mydomaintocertweb-agw' `
 #                -appGatewayBackendHttpSettingsName 'appGatewayBackendHttpSettings' `
 #                -domainToCert 'www.mydomaintocert.com' `
+#                -multisiteListener 'true' `
 #                -certPassword 'mySweetPassword123!@' `
 #                -azureDnsZone 'mydomaintocert.com' `
 #                -azureDnsZoneResourceGroup 'web-resoucegroup-rg' `
@@ -64,6 +68,9 @@ Function Deploy-LeSslCertToAzure() {
         $appGatewayBackendHttpSettingsName,
         [Parameter(Mandatory=$true)]
         $domainToCert,
+        [Parameter(Mandatory=$true)]
+        [ValidateSet("true","True","false","False")]
+        $multisiteListener,
         [Parameter(Mandatory=$true)]
         $certPassword,
         [Parameter(Mandatory=$true)]
@@ -96,6 +103,7 @@ Function Deploy-LeSslCertToAzure() {
     $appGatewayHttpsPort = 443
     $appGatewayHttpsRuleName = 'httpsRule'
     $scriptRoot = "$env:Temp"
+    $boolmultisiteListener = [System.Convert]::ToBoolean("$multisiteListener")
     ###############################################################
     ###############################################################
     ###############################################################
@@ -265,7 +273,12 @@ Function Deploy-LeSslCertToAzure() {
         # Create a new Listener using the new https port
         Write-Verbose "Creating new HTTPS Listener..."
         Remove-AzureRmApplicationGatewayHttpListener -ApplicationGateway $appGateway -Name "appGatewayHttpListener" -ErrorAction SilentlyContinue
-        Add-AzureRmApplicationGatewayHttpListener -ApplicationGateway $appGateway -Name $appGwHttpsListenerName -Protocol Https -FrontendIPConfiguration $fipconfig -FrontendPort $fpHttpsPort -SslCertificate $cert
+        if ($boolmultisiteListener) {
+            Add-AzureRmApplicationGatewayHttpListener -ApplicationGateway $appGateway -Name $appGwHttpsListenerName -Protocol Https -FrontendIPConfiguration $fipconfig -FrontendPort $fpHttpsPort -HostName $domainToCert -RequireServerNameIndication true -SslCertificate $cert
+        } 
+        else { 
+            Add-AzureRmApplicationGatewayHttpListener -ApplicationGateway $appGateway -Name $appGwHttpsListenerName -Protocol Https -FrontendIPConfiguration $fipconfig -FrontendPort $fpHttpsPort -SslCertificate $cert
+        }
         $listener = Get-AzureRmApplicationGatewayHttpListener -ApplicationGateway $appGateway -Name $appGwHttpsListenerName
   
         # Get ref to backend pool
