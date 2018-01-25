@@ -15,6 +15,10 @@
 # The name of the Azure Application Gateway that has been deployed where the 
 # SSL/TLS Certificate will be applied.
 #
+#.PARAMETER appGatewayBackendPoolName
+# The name of the Backend Pool on the Application Gateway (these must
+# already be setup and configured on the Application Gateway).
+#
 #.PARAMETER appGatewayBackendHttpSettingsName
 # The name of the Backend HTTP Settings on the Application Gateway (these must
 # already be setup and configured on the Application Gateway).
@@ -49,6 +53,7 @@
 # Deploy-LeSslCertToAzure `
 #                -appGatewayRgName 'web-resoucegroup-rg' `
 #                -appGatewayName 'mydomaintocertweb-agw' `
+#                -appGatewayBackendPoolName 'appGatewayBackendPool' `
 #                -appGatewayBackendHttpSettingsName 'appGatewayBackendHttpSettings' `
 #                -domainToCert 'www.mydomaintocert.com' `
 #                -multisiteListener 'true' `
@@ -64,6 +69,8 @@ Function Deploy-LeSslCertToAzure() {
         $appGatewayRgName,
         [Parameter(Mandatory=$true)]
         $appGatewayName,
+        [Parameter(Mandatory=$true)]
+        $appGatewayBackendPoolName,
         [Parameter(Mandatory=$true)]
         $appGatewayBackendHttpSettingsName,
         [Parameter(Mandatory=$true)]
@@ -98,12 +105,17 @@ Function Deploy-LeSslCertToAzure() {
  
     $acmeValidationDnsHostName = '_acme-challenge.'  + $domainToCert.Replace(".$azureDnsZone",'')
   
-    $appGwHttpsListenerName = 'appGatewayHttpsListener'
-    $appGatewayFrontEndHttpsPortName = 'myFrontendHttpsPort'
+    $appGatewayFrontEndHttpsPortName = 'appGatewayFrontendHttpsPort'
     $appGatewayHttpsPort = 443
-    $appGatewayHttpsRuleName = 'httpsRule'
     $scriptRoot = "$env:Temp"
     $boolmultisiteListener = [System.Convert]::ToBoolean("$multisiteListener")
+    $hostnametoCert = $domainToCert.split(".")[0]
+    if ($boolmultisiteListener) {
+        $appGwHttpsListenerName = "${hostnametoCert}-multi-site"
+    } else {
+        $appGwHttpsListenerName = 'appGatewayHttpsListener'
+    }
+    $appGatewayHttpsRuleName = "${hostnametoCert}-basic"
     ###############################################################
     ###############################################################
     ###############################################################
@@ -132,8 +144,8 @@ Function Deploy-LeSslCertToAzure() {
   
     # Had to use try/catch since script didn't handle -ErrorAction SilentlyContinue properly
     try {
-        # See if Identifer is already registered
-        Write-Verbose "Checking if ACME Identifer $dnsAlias already exists."
+        # See if Identifier is already registered
+        Write-Verbose "Checking if ACME Identifier $dnsAlias already exists."
         (Get-ACMEIdentifier -IdentifierRef $dnsAlias)
         $dnsTxtValue = ((Get-ACMEIdentifier -IdentifierRef $dnsAlias).Challenges | Where-Object {$_.Type -eq "dns-01"}).Challenge.RecordValue 
         Write-Verbose "It exists, DNS TXT value requested is '$dnsTxtValue.'"
@@ -174,7 +186,7 @@ Function Deploy-LeSslCertToAzure() {
         if ($dnsRecordSet.Records.Count -eq 0) {
             # No record at all, create a new one.
             $txtRecord = New-AzureRmDnsRecordConfig -Value $dnsTxtValue
-            # Add to recordset.
+            # Add Record set.
             $dnsRecordSet.Records.Add($txtRecord)
         } else {
             # Found a record, but need to update it.
@@ -234,7 +246,7 @@ Function Deploy-LeSslCertToAzure() {
         if ($dnsCertCreated -eq $null) {
             Write-Verbose "Creating new certificate $dnsCertAlias to sign."
             New-ACMECertificate $dnsAlias -Generate -Alias $dnsCertAlias
-            Write-Verbose "Submiting $dnsCertAlias certificate for signature."
+            Write-Verbose "Submitting $dnsCertAlias certificate for signature."
             Submit-ACMECertificate $dnsCertAlias
         }
          
@@ -257,11 +269,19 @@ Function Deploy-LeSslCertToAzure() {
   
         # Create a new SSL port and add it to the front ends ports
         Write-Verbose "Creating SSL FrontEnd Port for SSL/TLS on TCP 443."
-        Remove-AzureRmApplicationGatewayFrontendPort -ApplicationGateway $appGateway -Name "appGatewayFrontendPort" -ErrorAction SilentlyContinue
-        Add-AzureRmApplicationGatewayFrontendPort -ApplicationGateway $appGateway -Name $appGatewayFrontEndHttpsPortName -Port $appGatewayHttpsPort
-  
-        $fpHttpsPort = Get-AzureRmApplicationGatewayFrontendPort -name $appGatewayFrontEndHttpsPortName -ApplicationGateway $appGateway
-  
+        $currentfrontendports = Get-AzureRmApplicationGatewayFrontendPort -ApplicationGateway $appGateway
+        foreach ($n in $currentfrontendports) {
+            if ($n.Port -eq 443) {
+                $fpHttpsPort = $n 
+            }
+        }
+        if (!$fpHttpsPort) {
+            #Remove-AzureRmApplicationGatewayFrontendPort -ApplicationGateway $appGateway -Name "appGatewayFrontendPort" -ErrorAction SilentlyContinue
+            Add-AzureRmApplicationGatewayFrontendPort -ApplicationGateway $appGateway -Name $appGatewayFrontEndHttpsPortName -Port $appGatewayHttpsPort
+            $fpHttpsPort = Get-AzureRmApplicationGatewayFrontendPort -name $appGatewayFrontEndHttpsPortName -ApplicationGateway $appGateway
+        }
+
+
         # Load cert
         Write-Verbose "Adding SSL/TLS Certificate: $signedSslCertificate."
         $securecertPassword = ConvertTo-SecureString -String "$certPassword" -AsPlainText -Force
@@ -282,7 +302,7 @@ Function Deploy-LeSslCertToAzure() {
         $listener = Get-AzureRmApplicationGatewayHttpListener -ApplicationGateway $appGateway -Name $appGwHttpsListenerName
   
         # Get ref to backend pool
-        $backendPool = Get-AzureRmApplicationGatewayBackendAddressPool -ApplicationGateway $appGateway
+        $backendPool = Get-AzureRmApplicationGatewayBackendAddressPool -ApplicationGateway $appGateway -Name $appGatewayBackendPoolName
   
         # Get backend Pool
         $poolSetting = Get-AzureRmApplicationGatewayBackendHttpSettings -ApplicationGateway $appGateway -name $appGatewayBackendHttpSettingsName

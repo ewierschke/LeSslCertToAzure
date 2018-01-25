@@ -52,6 +52,7 @@ catch {
 Deploy-LeSslCertToAzure `
     -appGatewayRgName 'web-resoucegroup-rg' `
     -appGatewayName 'mydomaintocertweb-agw' `
+    -appGatewayBackendPoolName 'appGatewayBackendPool' `
     -appGatewayBackendHttpSettingsName 'appGatewayBackendHttpSettings' `
     -domainToCert 'www.mydomaintocert.com' `
     -multisiteListener 'true' `
