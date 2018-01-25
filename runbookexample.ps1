@@ -1,6 +1,8 @@
 
 ## todo-need to add a cert expiry check to runbook in order to limit runtime to 
 ## only execute module if cert is within defined expiry window
+## todo-look into potential benefit of pushing private key and/or ACMEVault to 
+## storage acct
 
 # Azure Runbook can execute for 20min in order to run module's  
 # Set-AzureRmApplicationGateway command
