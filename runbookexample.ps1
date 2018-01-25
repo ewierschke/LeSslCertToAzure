@@ -1,6 +1,3 @@
-## still need to modify module to create settings that use trimmed/matched 
-## domainttocert then also removes corresponding existing and creates new appgw 
-## settings each run
 
 ## need to add a cert expiry check to script in order to limit run time to only 
 ## execute module if cert is within defined expiry window
