@@ -1,9 +1,25 @@
 
-## need to add a cert expiry check to script in order to limit run time to only 
-## execute module if cert is within defined expiry window
+## todo-need to add a cert expiry check to runbook in order to limit runtime to 
+## only execute module if cert is within defined expiry window
 
 # Azure Runbook can execute for 20min in order to run module's  
 # Set-AzureRmApplicationGateway command
+
+# An Application Gateway and Azure DNS Zone needs to have been already created 
+# along with a corresponding AppGW Backend pool, AppGW HTTP settings, and Azure 
+# DNS Zone Record set A record to be entered below for the domain to cert
+
+# Azure Automation Account needs the following modules updated/imported prior to
+# executing this Runbook (typically available in the Modules gallery):
+# AzureRM.Profile, AzureRM.DNS, AzureRM.Network, ACMESharp
+
+# Azure Automation Account Variables need to be created before execution, with 
+# names 'SubscriptionId' - String (unencrypted) and 
+# 'CertificatePassword' - String (encrypted)
+
+# Authentication below assumes use of Automation Account RunAs 
+# account/connection
+
 $scriptRoot = "$env:Temp"
 $moduleRoot = "$scriptRoot"
 
@@ -46,15 +62,16 @@ catch {
     }
 }
 
+$certPass = Get-AutomationVariable -Name 'CertificatePassword'
 Deploy-LeSslCertToAzure `
     -appGatewayRgName 'web-resoucegroup-rg' `
     -appGatewayName 'mydomaintocertweb-agw' `
     -appGatewayBackendPoolName 'appGatewayBackendPool' `
     -appGatewayBackendHttpSettingsName 'appGatewayBackendHttpSettings' `
-    -domainToCert 'www.mydomaintocert.com' `
+    -domainToCert 'www.example.com' `
     -multisiteListener 'true' `
-    -certPassword 'mySweetPassword123!@' `
-    -azureDnsZone 'mydomaintocert.com' `
-    -dnsAlias 'wwwDomainCom' `
+    -certPassword $certPass `
+    -azureDnsZone 'example.com' `
+    -dnsAlias 'wwwExampleCom' `
     -azureDnsZoneResourceGroup 'web-resoucegroup-rg' `
-    -registrationEmail 'ops@mydomaintocert.com'
+    -registrationEmail 'ops@example.com'
