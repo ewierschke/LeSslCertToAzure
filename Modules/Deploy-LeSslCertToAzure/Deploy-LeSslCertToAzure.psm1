@@ -314,6 +314,7 @@ Function Deploy-LeSslCertToAzure() {
   
         #Create new rule for current backend Pool and created
         Write-Verbose "Adding new Routing Rule for new HTTPS Listener..."
+        Get-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway
         Add-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name $appGatewayHttpsRuleName -RuleType Basic -BackendHttpSettings $poolSetting -HttpListener $listener -BackendAddressPool $backendPool
   
         Write-Verbose "Saving changes..."
