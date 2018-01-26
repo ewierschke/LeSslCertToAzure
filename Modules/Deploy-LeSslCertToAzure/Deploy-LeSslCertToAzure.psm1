@@ -289,11 +289,15 @@ Function Deploy-LeSslCertToAzure() {
         $cert = Get-AzureRmApplicationGatewaySslCertificate -ApplicationGateway $appGateway -Name $dnsCertAlias
         # Get frontEndIP
         $fipconfig = Get-AzureRmApplicationGatewayFrontendIPConfig -ApplicationGateway $appGateway
-         
-        # Create a new Listener using the new https port
-        Write-Verbose "Creating new HTTPS Listener..."
+        
+        # Remove old Listeners and Rules
         Remove-AzureRmApplicationGatewayHttpListener -ApplicationGateway $appGateway -Name "appGatewayHttpListener" -ErrorAction SilentlyContinue
         Remove-AzureRmApplicationGatewayHttpListener -ApplicationGateway $appGateway -Name $appGwHttpsListenerName -ErrorAction SilentlyContinue
+        Remove-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name "rule1" -ErrorAction SilentlyContinue
+        Remove-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name $appGatewayHttpsRuleName -ErrorAction SilentlyContinue
+        
+        # Create a new Listener using the new https port
+        Write-Verbose "Creating new HTTPS Listener..."
         if ($boolmultisiteListener) {
             Add-AzureRmApplicationGatewayHttpListener -ApplicationGateway $appGateway -Name $appGwHttpsListenerName -Protocol Https -FrontendIPConfiguration $fipconfig -FrontendPort $fpHttpsPort -HostName $domainToCert -RequireServerNameIndication true -SslCertificate $cert
         } 
@@ -310,8 +314,6 @@ Function Deploy-LeSslCertToAzure() {
   
         #Create new rule for current backend Pool and created
         Write-Verbose "Adding new Routing Rule for new HTTPS Listener..."
-        Remove-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name "rule1" -ErrorAction SilentlyContinue
-        Remove-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name $appGatewayHttpsRuleName -ErrorAction SilentlyContinue
         Add-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name $appGatewayHttpsRuleName -RuleType Basic -BackendHttpSettings $poolSetting -HttpListener $listener -BackendAddressPool $backendPool
   
         Write-Verbose "Saving changes..."
