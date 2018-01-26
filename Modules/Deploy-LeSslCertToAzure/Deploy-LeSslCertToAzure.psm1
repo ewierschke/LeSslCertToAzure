@@ -295,6 +295,13 @@ Function Deploy-LeSslCertToAzure() {
         Remove-AzureRmApplicationGatewayHttpListener -ApplicationGateway $appGateway -Name $appGwHttpsListenerName -ErrorAction SilentlyContinue
         Remove-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name "rule1" -ErrorAction SilentlyContinue
         Remove-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name $appGatewayHttpsRuleName -ErrorAction SilentlyContinue
+        #Remove all rules from listener being removed to avoid two rules on listener
+        $rules = Get-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway
+        foreach ($rule in $rules) {
+            if ($rule.HttpListenerText.split('/')[10].split('"')[0] -eq $appGwHttpsListenerName) {
+                Remove-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name $rule.Name
+            }
+        }
         
         # Create a new Listener using the new https port
         Write-Verbose "Creating new HTTPS Listener..."
