@@ -110,6 +110,7 @@ Function Deploy-LeSslCertToAzure() {
     $scriptRoot = "$env:Temp"
     $boolmultisiteListener = [System.Convert]::ToBoolean("$multisiteListener")
     $hostnametoCert = $domainToCert.split(".")[0]
+    $fpHttpsPort = $null
     if ($boolmultisiteListener) {
         $appGwHttpsListenerName = "${hostnametoCert}-multi-site"
     } else {
@@ -276,7 +277,7 @@ Function Deploy-LeSslCertToAzure() {
             }
         }
         if (!$fpHttpsPort) {
-            #Remove-AzureRmApplicationGatewayFrontendPort -ApplicationGateway $appGateway -Name "appGatewayFrontendPort" -ErrorAction SilentlyContinue
+            Remove-AzureRmApplicationGatewayFrontendPort -ApplicationGateway $appGateway -Name "appGatewayFrontendPort" -ErrorAction SilentlyContinue
             Add-AzureRmApplicationGatewayFrontendPort -ApplicationGateway $appGateway -Name $appGatewayFrontEndHttpsPortName -Port $appGatewayHttpsPort
             $fpHttpsPort = Get-AzureRmApplicationGatewayFrontendPort -name $appGatewayFrontEndHttpsPortName -ApplicationGateway $appGateway
         }
