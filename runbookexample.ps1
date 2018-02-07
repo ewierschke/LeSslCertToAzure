@@ -129,7 +129,4 @@ foreach ($hostentry in $hosttocert) {
             -azureDnsZoneResourceGroup $azurednszonergname `
             -registrationEmail $letsencryptregemail
     }
-    rv req
-    rv expiration
-    rv certExpiresIn
 }
