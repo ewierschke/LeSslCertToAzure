@@ -16,7 +16,11 @@
 # names 'SubscriptionId' - String (unencrypted) and 
 # 'CertificatePassword' - String (encrypted)
 
-# Update the $hosttocert variable and 
+# Update the block of variables as described below
+
+# Optional parameters can be provided directly to the Deploy-LeSslCertToAzure 
+# module below to use specific http settings and routing request rule names.  
+# -ApplicationGatewayHttpListenerName, -ApplicationGatewayRequestRoutingRuleName
 
 # Authentication below assumes use of Automation Account RunAs 
 # account/connection

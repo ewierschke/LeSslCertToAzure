@@ -49,6 +49,12 @@
 # The email address registred with Let's Encrypt when registering the 
 # SSL/TLS Cert.
 #
+#.PARAMETER (optional) ApplicationGatewayHttpListenerName
+# The name of the Http Listener you want to use/reuse 
+#
+#.PARAMETER (optional) ApplicationGatewayRequestRoutingRuleName
+# The name of the Request Routing Rule you want to use/reuse 
+#
 #.EXAMPLE
 # Deploy-LeSslCertToAzure `
 #                -appGatewayRgName 'web-resoucegroup-rg' `
@@ -87,7 +93,11 @@ Function Deploy-LeSslCertToAzure() {
         [Parameter(Mandatory=$true)]
         $dnsAlias,
         [Parameter(Mandatory=$true)]
-        $registrationEmail
+        $registrationEmail,
+        [Parameter(Mandatory=$false)]
+        $ApplicationGatewayHttpListenerName = 'listener-basic',
+        [Parameter(Mandatory=$false)]
+        $ApplicationGatewayRequestRoutingRuleName = 'rule-basic'
     )
     Set-StrictMode -Version 3
     ########################
@@ -111,12 +121,20 @@ Function Deploy-LeSslCertToAzure() {
     $boolmultisiteListener = [System.Convert]::ToBoolean("$multisiteListener")
     $hostnametoCert = $domainToCert.split(".")[0]
     $fpHttpsPort = $null
-    if ($boolmultisiteListener) {
+
+    if (($boolmultisiteListener) -and ($ApplicationGatewayHttpListenerName -eq 'listener-basic')) {
         $appGwHttpsListenerName = "${hostnametoCert}-multi-site"
+    } elseif ((-Not ($boolmultisiteListener)) -and ($ApplicationGatewayHttpListenerName -eq 'listener-basic')) {
+        $appGwHttpsListenerName = "${hostnametoCert}-basic"
     } else {
-        $appGwHttpsListenerName = 'appGatewayHttpsListener'
+        $appGwHttpsListenerName = "${ApplicationGatewayHttpListenerName}"
     }
-    $appGatewayHttpsRuleName = "${hostnametoCert}-basic"
+
+    if ($ApplicationGatewayRequestRoutingRuleName -eq 'rule-basic') {
+        $appGatewayHttpsRuleName = "${hostnametoCert}-basic"
+    } else {
+        $appGatewayHttpsRuleName = "${ApplicationGatewayRequestRoutingRuleName}"
+    }
     ###############################################################
     ###############################################################
     ###############################################################
@@ -302,6 +320,17 @@ Function Deploy-LeSslCertToAzure() {
         Remove-AzureRmApplicationGatewayHttpListener -ApplicationGateway $appGateway -Name "appGatewayHttpListener" -ErrorAction SilentlyContinue
         Remove-AzureRmApplicationGatewayHttpListener -ApplicationGateway $appGateway -Name $appGwHttpsListenerName -ErrorAction SilentlyContinue
         Remove-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name "rule1" -ErrorAction SilentlyContinue
+        $oldappGatewayHttpsRule = Get-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name $appGatewayHttpsRuleName -ErrorAction SilentlyContinue
+        if ($oldappGatewayHttpsRule.RuleType -eq "PathBasedRouting") {
+            $oldwaspathbased = "true"
+        } else {
+            $oldwaspathbased = "false"
+        }
+        if ($oldappGatewayHttpsRule.RedirectConfigurationText -eq 'null') {
+            $oldhasredirect = "false"
+        } else {
+            $oldhasredirect = "true"
+        }
         Remove-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name $appGatewayHttpsRuleName -ErrorAction SilentlyContinue
         #Remove all rules from listener being removed to avoid two rules on listener
         $rules = Get-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway
@@ -327,11 +356,35 @@ Function Deploy-LeSslCertToAzure() {
         # Get backend Pool
         $poolSetting = Get-AzureRmApplicationGatewayBackendHttpSettings -ApplicationGateway $appGateway -name $appGatewayBackendHttpSettingsName
   
-        #Create new rule for current backend Pool and created
+        #Create request routing rule
         Write-Verbose "Adding new Routing Rule for new HTTPS Listener..."
         Get-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway
-        Add-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name $appGatewayHttpsRuleName -RuleType Basic -BackendHttpSettings $poolSetting -HttpListener $listener -BackendAddressPool $backendPool
-  
+        if ($oldwaspathbased -ne "true") {
+            if ($oldhasredirect -ne "false") {
+                #basic rule with redirect configuration
+                $oldredirectname = $oldappGatewayHttpsRule.RedirectConfigurationText.split('/')[10].split('"')[0]
+                $oldredirect = Get-AzureRmApplicationGatewayRedirectConfiguration -ApplicationGateway $appGateway -Name $oldredirectname
+                Add-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name $appGatewayHttpsRuleName -RuleType Basic -BackendHttpSettings $poolSetting -HttpListener $listener -BackendAddressPool $backendPool -RedirectConfiguration $oldredirect
+            } else {
+                #basic rule without redirect configuration
+                Add-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name $appGatewayHttpsRuleName -RuleType Basic -BackendHttpSettings $poolSetting -HttpListener $listener -BackendAddressPool $backendPool
+            }
+        } else {
+            if ($oldhasredirect -ne "false") {
+                #path-based rule with redirect configuration
+                $oldredirectname = $oldappGatewayHttpsRule.RedirectConfigurationText.split('/')[10].split('"')[0]
+                $oldredirect = Get-AzureRmApplicationGatewayRedirectConfiguration -ApplicationGateway $appGateway -Name $oldredirectname
+                $oldpathmapname = $oldappGatewayHttpsRule.UrlPathMapText.split('/')[10].split('"')[0]
+                $oldpathmap = Get-AzureRmApplicationGatewayUrlPathMapConfig -ApplicationGateway $appGateway -Name $oldpathmapname
+                Add-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name $appGatewayHttpsRuleName -RuleType PathBasedRouting -HttpListener $listener -UrlPathMap $oldpathmap -RedirectConfiguration $oldredirect
+            } else {
+                #path-based rule without redirect configuration
+                $oldpathmapname = $oldappGatewayHttpsRule.UrlPathMapText.split('/')[10].split('"')[0]
+                $oldpathmap = Get-AzureRmApplicationGatewayUrlPathMapConfig -ApplicationGateway $appGateway -Name $oldpathmapname
+                Add-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name $appGatewayHttpsRuleName -RuleType PathBasedRouting -HttpListener $listener -UrlPathMap $oldpathmap
+            }
+        }
+
         Write-Verbose "Saving changes..."
         # Commit the changes to Azure
         Set-AzureRmApplicationGateway -ApplicationGateway $appGateway
