@@ -403,7 +403,7 @@ Function Deploy-LeSslCertToAzure() {
         #existing path based rule
         } elseif (($oldwaspathbased -eq "true") -And ($createnewrule -eq "false")) {
             #rulename not provided, getpathmapfrom provided
-            } if (($appGatewayHttpsRuleName -eq "${hostnametoCert}-basic") -And ($ApplicationGatewayGetPathMapFromRequestRoutingRuleName)) {
+            if (($appGatewayHttpsRuleName -eq "${hostnametoCert}-basic") -And ($ApplicationGatewayGetPathMapFromRequestRoutingRuleName)) {
                 if ($oldhasredirect -ne "false") {
                     #path-based rule with redirect configuration
                     $appGatewayHttpsRuleName = "${hostnametoCert}-pathbased"
