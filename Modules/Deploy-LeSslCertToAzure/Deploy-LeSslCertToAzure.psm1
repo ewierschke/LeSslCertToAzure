@@ -346,8 +346,10 @@ Function Deploy-LeSslCertToAzure() {
             }
         } elseif ($oldappGatewayHttpsRule.RuleType -eq "PathBasedRouting") {
             $oldwaspathbased = "true"
+            $createnewrule = "false"
         } elseif ($oldappGatewayHttpsRule.RuleType -eq "Basic") {
             $oldwaspathbased = "false"
+            $createnewrule = "false"
         } else {
             $oldwaspathbased = "false"
         }
