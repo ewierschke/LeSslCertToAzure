@@ -327,25 +327,34 @@ Function Deploy-LeSslCertToAzure() {
         Remove-AzureRmApplicationGatewayHttpListener -ApplicationGateway $appGateway -Name $appGwHttpsListenerName -ErrorAction SilentlyContinue
         Remove-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name "rule1" -ErrorAction SilentlyContinue
         $getPathMapFromRoutingRule = Get-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name $ApplicationGatewayGetPathMapFromRequestRoutingRuleName -ErrorAction SilentlyContinue
-        if ($getPathMapFromRoutingRule.RuleType -eq "PathBasedRouting") {
+        if (!$getPathMapFromRoutingRule) {
+            Write-Verbose "ERROR Routing Rule from which to get pathmap doesn't exist"
+        } elseif ($getPathMapFromRoutingRule.RuleType -eq "PathBasedRouting") {
             $getPathMapFrom = "true"
         } elseif ($getPathMapFromRoutingRule.RuleType -eq $null) {
-            Write-Verbose "ERROR Routing Rule from which to get pathmap doesn't exist"
+            Write-Verbose "ERROR Routing Rule from which to get pathmap doesn't contain a pathmap, is basic?"
         } else {
             $getPathMapFrom = "false"
         }
         $oldappGatewayHttpsRule = Get-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name $appGatewayHttpsRuleName -ErrorAction SilentlyContinue
-        if ($oldappGatewayHttpsRule.RuleType -eq "PathBasedRouting") {
-            $oldwaspathbased = "true"
-        } elseif ($oldappGatewayHttpsRule.RuleType -eq $null) {
+        if (!$oldappGatewayHttpsRule) {
             $createnewrule = "true"
+            if ($getPathMapFromRoutingRule) {
+                $oldwaspathbased = "true"
+            } else {
+                $oldwaspathbased = "false"
+            }
+        } elseif ($oldappGatewayHttpsRule.RuleType -eq "PathBasedRouting") {
+            $oldwaspathbased = "true"
         } elseif ($oldappGatewayHttpsRule.RuleType -eq "Basic") {
             $oldwaspathbased = "false"
         } else {
             $oldwaspathbased = "false"
         }
 
-        if ($oldappGatewayHttpsRule.RedirectConfigurationText -eq 'null') {
+        if (!$oldappGatewayHttpsRule) {
+            $oldhasredirect = "false"
+        } elseif ($oldappGatewayHttpsRule.RedirectConfigurationText -eq 'null') {
             $oldhasredirect = "false"
         } else {
             $oldhasredirect = "true"
@@ -390,7 +399,7 @@ Function Deploy-LeSslCertToAzure() {
                 Add-AzureRmApplicationGatewayRequestRoutingRule -ApplicationGateway $appGateway -Name $appGatewayHttpsRuleName -RuleType Basic -BackendHttpSettings $poolSetting -HttpListener $listener -BackendAddressPool $backendPool
             }
         #existing path based rule
-        } elseif ($oldwaspathbased -eq "true") {
+        } elseif (($oldwaspathbased -eq "true") -And ($createnewrule -eq "false")) {
             #rulename not provided, getpathmapfrom provided
             elseif (($appGatewayHttpsRuleName -eq "${hostnametoCert}-basic") -And ($ApplicationGatewayGetPathMapFromRequestRoutingRuleName)) {
                 if ($oldhasredirect -ne "false") {

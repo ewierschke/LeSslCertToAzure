@@ -24,6 +24,10 @@
 # -ApplicationGatewayHttpListenerName 
 # -ApplicationGatewayRequestRoutingRuleName
 # -ApplicationGatewayGetPathMapFromRequestRoutingRuleName
+#
+# WARNING - certain combinations of using the three optional parameters above 
+# may leave the Application Gateway in an unmanageable state in the portal
+# (dependent on Portal or AppGW API updates)
 
 # Authentication below assumes use of Automation Account RunAs 
 # account/connection
