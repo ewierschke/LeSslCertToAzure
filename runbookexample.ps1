@@ -19,8 +19,11 @@
 # Update the block of variables as described below
 
 # Optional parameters can be provided directly to the Deploy-LeSslCertToAzure 
-# module below to use specific listener settings and routing request rule names.  
-# -ApplicationGatewayHttpListenerName, -ApplicationGatewayRequestRoutingRuleName
+# module below to use specific listener settings, routing request rule names, 
+# and whether to reuse pathmap from existing routing request rule name.  
+# -ApplicationGatewayHttpListenerName 
+# -ApplicationGatewayRequestRoutingRuleName
+# -ApplicationGatewayGetPathMapFromRequestRoutingRuleName
 
 # Authentication below assumes use of Automation Account RunAs 
 # account/connection
